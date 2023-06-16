@@ -34,11 +34,9 @@ from .env_vars import get_potentially_lib_path_containing_env_vars
 CUDA_RUNTIME_LIBS: list = ["libcudart.so", 'libcudart.so.11.0', 'libcudart.so.12.0']
 
 # this is a order list of backup paths to search CUDA in, if it cannot be found in the main environmental paths
-real_path = os.popen("find / -name libcudart.so 2>/dev/null").read()
 
 backup_paths = []
 backup_paths.append('$CONDA_PREFIX/lib/libcudart.so.11.0')
-backup_paths.append(real_path)
 
 class CUDASetup:
     _instance = None
@@ -93,6 +91,61 @@ class CUDASetup:
         self.add_log_entry('cd bitsandbytes')
         self.add_log_entry(make_cmd)
         self.add_log_entry('python setup.py install')
+
+    def check_cuda_result(cuda, result_val):
+    # 3. Check for CUDA errors
+        if result_val != 0:
+            error_str = ct.c_char_p()
+            cuda.cuGetErrorString(result_val, ct.byref(error_str))
+            print(f"CUDA exception! Error code: {error_str.value.decode()}")
+
+    def get_cuda_version(cuda, cudart_path):
+        # https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART____VERSION.html#group__CUDART____VERSION
+        try:
+            cudart = ct.CDLL(cudart_path)
+        except OSError:
+            print(f'ERROR: libcudart.so could not be read from path: {cudart_path}!')
+            return None
+        
+        try:
+            runtime_path = os.popen("find / -name libcudart.so 2>/dev/null").read()
+            cuda = ct.CDLL(runtime_path)
+        except OSError:
+            print(f'ERROR: libcudart.so could not be read from path: {cudart_path}!')
+            return None
+
+        version = ct.c_int()
+        check_cuda_result(cuda, cudart.cudaRuntimeGetVersion(ct.byref(version)))
+        version = int(version.value)
+        major = version // 1000
+        minor = (version - (major * 1000)) // 10
+
+        if major < 11:
+            print('CUDA SETUP: CUDA version lower than 11 is currently not supported for LLM.int8(). You will only be able to use 8-bit optimizers and quantization routines!!')
+
+        return f'{major}{minor}'
+
+    def get_cuda_lib_handle():
+        try:
+            cuda_paths = os.popen("find / -name libcuda.so 2>/dev/null").read()
+            cuda_paths = cuda_paths.strip().split("\n")
+        except:
+            print('CUDA SETUP: WARNING! libcuda.so not found! Do you have a CUDA driver installed? If you are on a cluster, make sure you are on a CUDA machine!')
+            return None
+
+        for cuda_path in cuda_paths:
+            try:
+                cuda = ct.CDLL(cuda_path)
+                break
+            except OSError:
+                continue
+        else:
+            print('CUDA SETUP: WARNING! libcuda.so not found! Do you have a CUDA driver installed? If you are on a cluster, make sure you are on a CUDA machine!')
+            return None
+
+        check_cuda_result(cuda, cuda.cuInit(0))
+
+        return cuda
 
     def initialize(self):
         if not getattr(self, 'initialized', False):
