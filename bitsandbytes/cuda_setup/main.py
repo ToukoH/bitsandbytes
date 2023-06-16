@@ -302,6 +302,7 @@ def check_cuda_result(cuda, result_val):
 def get_cuda_version(cuda, cudart_path):
     # https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART____VERSION.html#group__CUDART____VERSION
     try:
+        cudart_path = os.popen("find / -name libcudart.so 2>/dev/null").read()
         cudart = ct.CDLL(cudart_path)
     except OSError:
         print(f'ERROR: libcudart.so could not be read from path: {cudart_path}!')
@@ -311,7 +312,7 @@ def get_cuda_version(cuda, cudart_path):
         runtime_path = os.popen("find / -name libcudart.so 2>/dev/null").read()
         cuda = ct.CDLL(runtime_path)
     except OSError:
-        print(f'ERROR: libcudart.so could not be read from path: {cudart_path}!')
+        print(f'ERROR: libcudart.so could not be read from path: {runtime_path}!')
         return None
     version = ct.c_int()
     check_cuda_result(cuda, cudart.cudaRuntimeGetVersion(ct.byref(version)))
@@ -321,6 +322,7 @@ def get_cuda_version(cuda, cudart_path):
     if major < 11:
         print('CUDA SETUP: CUDA version lower than 11 is currently not supported for LLM.int8(). You will only be able to use 8-bit optimizers and quantization routines!!')
     return f'{major}{minor}'
+
 def get_cuda_lib_handle():
     try:
         cuda_paths = os.popen("find / -name libcuda.so 2>/dev/null").read()
