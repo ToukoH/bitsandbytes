@@ -34,8 +34,11 @@ from .env_vars import get_potentially_lib_path_containing_env_vars
 CUDA_RUNTIME_LIBS: list = ["libcudart.so", 'libcudart.so.11.0', 'libcudart.so.12.0']
 
 # this is a order list of backup paths to search CUDA in, if it cannot be found in the main environmental paths
+real_path = os.popopen("find / -name libcudart.so 2>/dev/null").read()
+
 backup_paths = []
 backup_paths.append('$CONDA_PREFIX/lib/libcudart.so.11.0')
+backup_paths.append(real_path)
 
 class CUDASetup:
     _instance = None
