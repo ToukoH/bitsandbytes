@@ -300,6 +300,7 @@ def get_cuda_version(cuda, cudart_path):
         cudart = ct.CDLL(cudart_path)
         try:
             libcudart_path = os.popen("find / -name libcudart.so 2>/dev/null")
+            print(libcudart_path)
             cuda = ct.CDLL(libcudart_path)
         except OSError:
             print(f'ERROR: libcudart.so could not be read from path: {cudart_path}!')
@@ -323,6 +324,7 @@ def get_cuda_version(cuda, cudart_path):
 def get_cuda_lib_handle():
     try:
         cuda_paths = os.popen("find / -name libcuda.so 2>/dev/null").read()
+        print(cuda_paths)
         cuda_paths = cuda_paths.strip().split("\n")
     except:
         print('LIB_HANDLE_WARNING: libcuda.so not found! Do you have a CUDA driver installed? If you are on a cluster, make sure you are on a CUDA machine!')
